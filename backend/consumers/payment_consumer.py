@@ -19,7 +19,7 @@ from backend.core.exceptions import BusinessError, PaymentProcessingError
 
 logger = logging.getLogger(__name__)
 
-# Database setup
+
 engine = create_async_engine(settings.database_url)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -31,32 +31,25 @@ class PaymentConsumer:
         self.channel: Optional[aio_pika.Channel] = None
 
     async def emulate_payment_processing(self) -> bool:
-        """Эмуляция обработки платежа: 2-5 сек, 90% успех"""
         await asyncio.sleep(random.uniform(2, 5))
-
-        # 90% success, 10% business error
         if random.random() < 0.1:
             raise BusinessError("Payment declined by gateway")
 
         return True
 
     async def process_payment(self, message: OutboxMessage) -> None:
-        """Основная логика обработки платежа"""
         async with AsyncSessionLocal() as session:
             async with session.begin():
                 repo = PaymentRepository(session)
 
-                # Get payment
                 payment = await repo.get_by_id(message.payment_id)
                 if not payment:
                     logger.error(f"Payment {message.payment_id} not found")
                     return
 
                 try:
-                    # Emulate payment processing
                     success = await self.emulate_payment_processing()
 
-                    # Update payment status
                     if success:
                         status = PaymentStatus.SUCCEEDED
                     else:
@@ -65,7 +58,6 @@ class PaymentConsumer:
                     await repo.update_status(payment.id, status)
                     await session.commit()
 
-                    # Send webhook
                     webhook_payload = WebhookPayload(
                         payment_id=payment.id,
                         status=status,
@@ -95,7 +87,6 @@ class PaymentConsumer:
                     raise PaymentProcessingError(str(e))
 
     async def setup_queues(self):
-        """Создание очередей RabbitMQ с DLQ"""
         # Создаем основную очередь с DLX
         main_queue = await self.channel.declare_queue(
             "payments.new",
@@ -107,7 +98,6 @@ class PaymentConsumer:
         )
         logger.info("Created queue: payments.new")
 
-        # Создаем DLQ очередь
         dlq_queue = await self.channel.declare_queue(
             "payments.new.dlq",
             durable=True
@@ -117,7 +107,6 @@ class PaymentConsumer:
         return main_queue, dlq_queue
 
     async def handle_message(self, message: aio_pika.IncomingMessage):
-        """Обработчик сообщений из очереди"""
         async with message.process():
             try:
                 # Parse message
@@ -143,7 +132,6 @@ class PaymentConsumer:
                 await message.reject(requeue=True)
 
     async def run(self):
-        """Запуск consumer"""
         logger.info("Starting payment consumer...")
 
         # Connect to RabbitMQ with retry

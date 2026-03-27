@@ -8,7 +8,6 @@ from backend.domain.schemas.payment import PaymentCreate, PaymentResponse, Payme
 from backend.domain.services.payment_service import PaymentService
 from backend.core.exceptions import BusinessError
 
-# Убираем трейлинг слэш
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
 
@@ -23,16 +22,6 @@ async def create_payment(
         db: AsyncSession = Depends(get_db),
         api_key: str = Depends(verify_api_key)
 ):
-    """
-    Create a new payment
-
-    - **idempotency_key**: Unique key to prevent duplicate payments
-    - **amount**: Payment amount (positive decimal with 2 decimal places)
-    - **currency**: Currency code (RUB, USD, EUR)
-    - **description**: Payment description
-    - **webhook_url**: URL to send payment result notification
-    - **metadata**: Optional additional data
-    """
     service = PaymentService(db)
 
     try:

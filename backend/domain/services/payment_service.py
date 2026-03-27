@@ -27,12 +27,10 @@ class PaymentService:
             webhook_url: str,
             metadata_json: Optional[Dict[str, Any]] = None
     ) -> Payment:
-        # Check idempotency
         existing = await self.payment_repo.get_by_idempotency_key(idempotency_key)
         if existing:
             return existing
 
-        # Create payment
         payment = Payment(
             idempotency_key=idempotency_key,
             amount=amount,
@@ -45,7 +43,6 @@ class PaymentService:
 
         payment = await self.payment_repo.create(payment)
 
-        # Create outbox message
         outbox_message = OutboxMessage(
             payment_id=payment.id,
             webhook_url=webhook_url,

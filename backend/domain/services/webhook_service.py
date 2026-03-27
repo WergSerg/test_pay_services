@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def is_retryable_exception(exception: Exception) -> bool:
-    """Определяем, какие ошибки требуют retry"""
     if isinstance(exception, WebhookDeliveryError):
         return True
     if isinstance(exception, httpx.TimeoutException):
@@ -18,7 +17,6 @@ def is_retryable_exception(exception: Exception) -> bool:
     if isinstance(exception, httpx.NetworkError):
         return True
     if isinstance(exception, httpx.HTTPStatusError):
-        # 4xx ошибки клиента не требуют retry
         return exception.response.status_code >= 500
     return False
 
@@ -34,7 +32,6 @@ class WebhookService:
         reraise=True
     )
     async def send_webhook(self, url: str, payload: WebhookPayload) -> None:
-        """Отправка webhook с 3 попытками и экспоненциальной задержкой"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
                 response = await client.post(
@@ -50,7 +47,6 @@ class WebhookService:
                     raise WebhookDeliveryError(f"HTTP {e.response.status_code}")
                 else:
                     logger.error(f"Webhook client error {e.response.status_code}, not retrying")
-                    # Не retry для 4xx ошибок
             except (httpx.TimeoutException, httpx.NetworkError) as e:
                 logger.warning(f"Webhook network error: {e}, will retry")
                 raise WebhookDeliveryError(str(e))

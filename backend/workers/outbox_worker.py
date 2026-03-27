@@ -29,7 +29,6 @@ class OutboxWorker:
         self.channel: Optional[aio_pika.Channel] = None
 
     async def publish_message(self, outbox: Outbox) -> bool:
-        """Публикация сообщения в RabbitMQ"""
         try:
             # Ensure queue exists
             queue = await self.channel.declare_queue("payments.new", durable=True)
@@ -50,7 +49,6 @@ class OutboxWorker:
             return False
 
     async def process_outbox_messages(self, session: AsyncSession):
-        """Обработка сообщений из outbox"""
         service = OutboxService(session)
 
         messages = await service.get_pending_messages(limit=100)
@@ -59,7 +57,6 @@ class OutboxWorker:
             logger.info(f"Found {len(messages)} pending outbox messages")
 
         for message in messages:
-            # Publish to RabbitMQ
             success = await self.publish_message(message)
 
             if success:
@@ -72,14 +69,11 @@ class OutboxWorker:
                 logger.warning(f"Outbox message {message.id} marked as failed")
 
     async def run(self):
-        """Основной цикл worker"""
         logger.info(f"Starting outbox worker (poll interval: {self.poll_interval}s)")
 
-        # Connect to RabbitMQ
         self.connection = await connect_robust(settings.rabbitmq_url)
         self.channel = await self.connection.channel()
 
-        # Ensure queue exists
         await self.channel.declare_queue("payments.new", durable=True)
 
         while self.running:
@@ -92,7 +86,6 @@ class OutboxWorker:
                 await asyncio.sleep(self.poll_interval)
 
     def stop(self):
-        """Остановка worker"""
         self.running = False
 
 

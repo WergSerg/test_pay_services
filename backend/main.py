@@ -6,13 +6,9 @@ from backend.core.database import engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     async with engine.begin() as conn:
-        # Create tables if not exists (for dev)
-        # In production use Alembic migrations
         pass
     yield
-    # Shutdown
     await engine.dispose()
 
 
@@ -23,7 +19,6 @@ app = FastAPI(
     redirect_slashes=False
 )
 
-# Include routers
 app.include_router(payments.router)
 app.include_router(health.router)
 
